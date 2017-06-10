@@ -9,14 +9,25 @@ import uuid
 class Player():
     def __init__(self):
         self.uuid = uuid.uuid1()
-        self.hand = []  # List of 2-tuples: (card, Played)
+        self.cards = []
+        self.played = []
         self.name = ""
         self.team = 0
         self.bid  = 0
 
     def deal_hand(self, hand):
         for card in hand:
-            self.hand.append((card, False))
+            self.cards.append(card)
+            self.played.append(False)
+        print "Received cards:", self.cards
+
+    def update_status(self, status):
+        print  self.name + ": Got Status Update"
+        pass
+
+    def update_hand(self, hand):
+        print  self.name + ": Got Hand Update"
+        pass
 
 class JsonPlayer(Player):
     def __init__(self, Game, txqueue):

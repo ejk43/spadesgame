@@ -7,6 +7,7 @@ from Queue import Queue
 from spadesgame import Game
 from spadesplayer import JsonPlayer
 import json
+import argparse
 
 RED   = "\033[1;31m"  
 BLUE  = "\033[1;34m"
@@ -92,8 +93,12 @@ class SpadesRequestHandler(SocketServer.StreamRequestHandler):
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description='Spades Server')
+    parser.add_argument('port', type=int, default=PORT, help="Port")
+    (args) = parser.parse_args()
+
     # Create the server, binding to localhost on port 9999
-    server = SpadesServer((HOST, PORT), SpadesRequestHandler)
+    server = SpadesServer((HOST, args.port), SpadesRequestHandler)
 
     # # Activate the server; this will keep running until you
     # # interrupt the program with Ctrl-C

@@ -23,7 +23,7 @@ print json.dumps(server_status)
 
 server_hand = {'type'   : 'hand',
                'cards'  : ['S5', 'S6', 'HQ', 'DA', 'C3', 'CK'],
-               'bids'   : [['Michael', 5, 3], ['EJ', 0, 0],['David', 4, 1], ['Paige', 4, 0]],
+               'bids'   : [['Michael', 5, 3], ['EJ', 0, 0], ['David', 4, 1], ['Paige', 4, 0]],
                'trick'  : [['Michael', 'S2'], ['Paige', 'HA']],
                'turn'   : 'Michael',
                'action' : 'card'}

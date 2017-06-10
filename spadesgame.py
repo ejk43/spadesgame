@@ -1,4 +1,4 @@
-from spadesplayer import JsonPlayer
+from spadesplayer import Player, JsonPlayer
 import itertools
 import random
 import math
@@ -16,8 +16,8 @@ BOLD    = "\033[;1m"
 REVERSE = "\033[;7m"
 
 suites = ['D','H','C','S']
-values = ['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K']
-cards = [c for c in itertools.product(suites, values)]
+values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A']
+cards = [str(c[0])+str(c[1]) for c in itertools.product(suites, values)]
 
 class Deck():
     def __init__(self):
@@ -47,8 +47,12 @@ class Game():
         self.state   = Game.State.WAIT
         self.deck    = Deck()
         self.players = []
+        self.playerorder = []
         self.score1  = 0
         self.score2  = 0
+        self.turn    = 0
+        self.bids    = []
+        self.tricks  = []
 
         # Start game loop
         self.halt = False
@@ -62,6 +66,21 @@ class Game():
         for player in self.players:
             player.update_status(status)
         self.lock.release()
+
+    def update_hand(self):
+        for (ii, player) in enumerate(self.playerorder):
+            print ii
+            print player
+            print player.name
+            action = "wait"
+            if ii == self.turn:
+                if self.state == Game.State.BID:
+                    action = "bid"
+                elif self.state == Game.State.PLAY:
+                    action = "card"
+            handinfo = self.get_hand(player.cards, action)
+            player.update_hand(handinfo)
+            pass
 
     def add_player(self, newplayer):
         self.lock.acquire()
@@ -89,18 +108,30 @@ class Game():
         return list(map(lambda p: p.name, self.players))
 
     def get_team(self, idx):
-        return [p.name for p in self.players if (p.team == idx)] 
+        return [p for p in self.players if (p.team == idx)]
+
+    def get_names(self, playerlist):
+        return list(map(lambda p: p.name, playerlist))
 
     def get_status(self):
         status = {'type'    : 'status',
                   'players' : self.get_player_list(),
-                  'team1'   : self.get_team(1),
-                  'team2'   : self.get_team(2),
+                  'team1'   : self.get_names(self.get_team(1)),
+                  'team2'   : self.get_names(self.get_team(2)),
                   'score1'  : self.score1,
                   'score2'  : self.score2}
         return status
 
-    def start_bid(self):
+    def get_hand(self, cards, action):
+        hand = {'type'   : 'hand',
+                'cards'  : cards,
+                'bids'   : self.bids,
+                'trick'  : self.tricks,
+                'turn'   : self.playerorder[self.turn].name,
+                'action' : action}
+        return hand
+
+    def start_bidding(self):
         self.lock.acquire()
         self.state = Game.State.BID
 
@@ -110,6 +141,10 @@ class Game():
         for (player, hand) in zip(self.players, self.deck.deal()):
             print player.name, hand
             player.deal_hand(hand)
+
+        team1 = self.get_team(1)
+        team2 = self.get_team(2)
+        self.playerorder = [team1[0], team2[0], team1[1], team2[1]]
 
         self.lock.release()
         return
@@ -131,7 +166,8 @@ class Game():
                     if len(self.get_team(1)) == 2 and len(self.get_team(2)) == 2:
                         # If we have four players and each team has 2 players
                         self.logger.info("READY TO START")
-                        self.start_bid()
+                        self.start_bidding()
+                        self.update_hand()
 
             elif self.state == Game.State.BID:
                 self.logger.info("bidding")
@@ -150,18 +186,28 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 
-    myDeck = Deck()
-    print myDeck.cards
-    print myDeck.deal()
-    myDeck.shuffle()
-    print myDeck.cards
-    print myDeck.deal()
-
-    print
     myGame = Game()
-    myGame.loop()
 
-    myPlayer = JsonPlayer("EJ")
-    myGame.add_player(myPlayer)
+    player1 = Player()
+    player1.name = "EJ"
+    player1.team = 1
+    myGame.add_player(player1)
+    player2 = Player()
+    player2.name = "Michael"
+    player2.team = 1
+    myGame.add_player(player2)
 
-    myGame.loop()
+    time.sleep(5)
+
+    player1 = Player()
+    player1.name = "David"
+    player1.team = 2
+    myGame.add_player(player1)
+    player2 = Player()
+    player2.name = "Paige"
+    player2.team = 2
+    myGame.add_player(player2)
+
+    time.sleep(5)
+
+    myGame.shutdown()
