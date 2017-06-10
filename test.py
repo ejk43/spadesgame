@@ -41,7 +41,7 @@ print json.dumps(client_request)
 
 client_init = {'type' : 'init', 
                'id'   : 'David',
-               'partner' : ''}
+               'team' : 1}
 print json.dumps(client_init)
 
 client_bid = {'type' : 'bid', 
