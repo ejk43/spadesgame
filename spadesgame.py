@@ -16,7 +16,7 @@ BOLD    = "\033[;1m"
 REVERSE = "\033[;7m"
 
 suites = ['D','H','C','S']
-values = [1,2,3,4,5,6,7,8,9,10,'J','Q','K']
+values = ['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K']
 cards = [c for c in itertools.product(suites, values)]
 
 class Deck():
@@ -107,7 +107,9 @@ class Game():
         self.logger.info("Shuffling")
         self.deck.shuffle()
 
-        hands = self.deck.deal()
+        for (player, hand) in zip(self.players, self.deck.deal()):
+            print player.name, hand
+            player.deal_hand(hand)
 
         self.lock.release()
         return

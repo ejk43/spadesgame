@@ -6,15 +6,21 @@ import uuid
 
 # Derived classes provide JSON interactions between updates
 
-# class Player():
-#     def __init__(self, name, txqueue):
-
-class JsonPlayer():
-    def __init__(self, Game, txqueue):
+class Player():
+    def __init__(self):
         self.uuid = uuid.uuid1()
-        self.hand = []
+        self.hand = []  # List of 2-tuples: (card, Played)
         self.name = ""
         self.team = 0
+        self.bid  = 0
+
+    def deal_hand(self, hand):
+        for card in hand:
+            self.hand.append((card, False))
+
+class JsonPlayer(Player):
+    def __init__(self, Game, txqueue):
+        Player.__init__(self)
 
         self.txqueue = txqueue
         self.Game = Game
