@@ -123,7 +123,7 @@ class SpadesRequestHandler(SocketServer.StreamRequestHandler):
         print "New Handler"
         self.txqueue = Queue()
         self.txthread = threading.Thread(target=self.txloop)
-        # self.txthread.start()
+        self.txthread.start()
         self.parser = JsonParser(self.txqueue)
         SocketServer.StreamRequestHandler.__init__(self, *args, **kws)
 
@@ -143,9 +143,7 @@ class SpadesRequestHandler(SocketServer.StreamRequestHandler):
         print "connection from %s" % self.client_address[0]
 
         # Send first info
-        # self.txqueue.put(json.dumps(Spades.get_status()))
-
-        self.wfile.write(json.dumps(Spades.get_status()))
+        self.txqueue.put(json.dumps(Spades.get_status()))
 
         while True:
             try:
@@ -160,7 +158,7 @@ class SpadesRequestHandler(SocketServer.StreamRequestHandler):
 
     def finish(self):
         self.txqueue.put(None)
-        # self.txthread.join()
+        self.txthread.join()
         return SocketServer.StreamRequestHandler.finish(self)
 
 
