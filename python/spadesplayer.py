@@ -55,10 +55,7 @@ class Player():
 
     def play_card(self, card):
         self.logger.info("Playing Card: " + str(card))
-        if card in self.cards:
-            self.cards.remove(card)
-            self.played.append(card)
-            self.Game.place_card(self, card)
+        return self.Game.place_card(self, card)
         # TODO: Check for errors
 
 

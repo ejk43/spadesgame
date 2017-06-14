@@ -57,6 +57,7 @@ class Game():
         self.trick   = []
         self.trickidx = 0
         self.spadesbroke = False
+        self.rejectcards = True
 
         # Start game loop
         self.halt = False
@@ -139,11 +140,36 @@ class Game():
         if player != self.playerorder[self.turn]:
             self.logger.info("Error: %s playing out of turn" % player.name)
             return -2
+        if not card in player.cards:
+            self.logger.info("Error: %s does not have %s in hand" % (player.name, card))
+            return -3
+
+        # Check that player follows suit
+        if len(self.trick) > 0:
+            # Player must follow lead suit if possible
+            leadsuit = self.trick[0][1][0]
+            if card[0] != leadsuit:
+                handsuits = [c[0] for c in player.cards]
+                if leadsuit in handsuits and self.rejectcards:
+                    # Player has the leadsuit available
+                    self.logger.info("Error: %s must follow suit" % player.name)
+                    return -4
+                elif card[0] == trump and not self.spadesbroke:
+                    self.logger.info("SPADES BROKEN")
+                    self.spadesbroke = True
+        elif (card[0] == trump) and (not self.spadesbroke) and (self.rejectcards):
+            self.logger.info("Error: %s played spades before broken" % player.name)
+            return -5
+
 
         # Place the Card
         self.lock.acquire()
         self.logger.info("Received CARD from %s: %s" % (player.name, card))
+        
         self.trick.append((player.name, card))
+        player.cards.remove(card)
+        player.played.append(card)
+
         if self.turn < 4:
             self.turn = self.turn + 1
         self.lock.release()
@@ -159,12 +185,14 @@ class Game():
 
         self.update_hand()
 
+        return True
+
     def deal_cards(self):
         self.lock.acquire()
         self.deck.shuffle()
         self.logger.info("Dealing! Dealer is %s" % self.dealerorder[0].name)
         for (player, hand) in zip(self.playerorder, self.deck.deal()):
-            self.logger.info("Dealing to %s" % (player.name))
+            self.logger.info("Dealing to %s: %s" % (player.name, str(hand)))
             player.deal_hand(hand)
         self.lock.release()
 
@@ -189,6 +217,31 @@ class Game():
                     winner = currtrick
 
         return winner
+
+    def score_hand(self, score, team, bids):
+        # Save off info
+        total_bid = bids[0][1] + bids[1][1]
+        total_got = bids[0][2] + bids[1][2]
+        overtricks = score % 10
+
+        # Check and score nils
+        if bids[0][1] == 0:
+            score += 100 if bids[0][2] == 0 else -100
+        if bids[1][1] == 0:
+            score += 100 if bids[1][2] == 0 else -100
+
+        # Score rest of hand
+        if total_got >= total_bid:
+            score += 10*total_bid
+            score += total_got - total_bid
+            # If we hit 10 overtricks, subtract 100
+            overtricks += total_got - total_bid
+            if overtricks >= 10:
+                score -= 100
+        else:
+            # Subtract bid if we did not get all the tricks
+            score -= 10*total_bid
+        return score
 
     def start_game(self):
         self.lock.acquire()
@@ -264,6 +317,21 @@ class Game():
         # Score the hand
         self.lock.acquire()
         self.logger.info("Hand Results: %s" % (str(self.bids)))
+        
+        # Score team 1
+        team1 = self.get_names(self.get_team(1))
+        bids1 = [bid for bid in self.bids if bid[0] in team1]
+        score1 = self.score_hand(self.score1, team1,  bids1)
+        self.logger.info("Team 1 Score: %i --> %i" % (self.score1, score1))
+        self.score1 = score1
+
+        # Score team 2
+        team2 = self.get_names(self.get_team(2))
+        bids2 = [bid for bid in self.bids if bid[0] in team2]
+        score2 = self.score_hand(self.score2, team2,  bids2)
+        self.logger.info("Team 2 Score: %i --> %i" % (self.score2, score2))
+        self.score2 = score2
+
         # TODO: Score
         self.lock.release()
 
@@ -367,7 +435,10 @@ if __name__ == "__main__":
     for ii in range(13):
         print list(map(lambda p: p.name, playerlist))
         for pl in playerlist:
-            pl.play_card(pl.cards[0])
+            idx = 0
+            while pl.play_card(pl.cards[idx]) < 0:
+                idx = idx + 1
+                # time.sleep(1)
         time.sleep(1)
         playerlist = playerlist[1:] + playerlist[0:1]
 
@@ -383,7 +454,10 @@ if __name__ == "__main__":
     for ii in range(13):
         print list(map(lambda p: p.name, playerlist))
         for pl in playerlist:
-            pl.play_card(pl.cards[0])
+            idx = 0
+            while pl.play_card(pl.cards[idx]) < 0:
+                idx = idx + 1
+                # time.sleep(1)
         time.sleep(1)
         playerlist = playerlist[1:] + playerlist[0:1]
 
