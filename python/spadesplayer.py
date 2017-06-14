@@ -15,7 +15,7 @@ REVERSE = "\033[;7m"
 
 # Derived classes provide JSON interactions between updates
 
-logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
+# logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 
 class Player():
     def __init__(self,  Game):
@@ -39,7 +39,7 @@ class Player():
         for card in hand:
             self.cards.append(card)
             self.played.append(False)
-        print "Received cards:", self.cards
+        # print "Received cards:", self.cards
 
     def update_status(self, status):
         self.logger.info("Got Status Update")

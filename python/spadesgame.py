@@ -16,8 +16,10 @@ BOLD    = "\033[;1m"
 REVERSE = "\033[;7m"
 
 suites = ['D','H','C','S']
-values = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A']
-cards = [str(c[0])+str(c[1]) for c in itertools.product(suites, values)]
+values = ["2", "3", "4", "5", "6", "7", "8", "9", "10", 'J', 'Q', 'K', 'A']
+cards  = [str(c[0])+str(c[1]) for c in itertools.product(suites, values)]
+trump  = 'S'
+valdict = dict(zip(values, range(len(values))))
 
 class Deck():
     def __init__(self):
@@ -84,15 +86,6 @@ class Game():
             handinfo = self.get_hand(player.cards, action)
             player.update_hand(handinfo)
 
-    def end_trick(self):
-        self.lock.acquire()
-        
-        # Finish trick
-        self.turn = 4
-        self.update_hand()
-
-        self.lock.release()
-
     def add_player(self, newplayer):
         self.lock.acquire()
         if len(self.players) < 4:
@@ -127,7 +120,7 @@ class Game():
         # Place the bid
         self.lock.acquire()
         self.logger.info("Received BID from %s: %i" % (player.name, bid))
-        self.bids.append((player.name, bid, 0))
+        self.bids.append([player.name, bid, 0])
         if self.turn < 4:
             self.turn = self.turn + 1
         self.lock.release()
@@ -164,7 +157,6 @@ class Game():
                 self.end_hand()
                 self.start_hand()
 
-
         self.update_hand()
 
     def deal_cards(self):
@@ -176,10 +168,32 @@ class Game():
             player.deal_hand(hand)
         self.lock.release()
 
+    def score_trick(self, trick):
+        # Pull out cards, suits, values
+        cards = [t[1] for t in trick]
+        suits = [c[0] for c in cards]
+        vals  = [c[1:] for c in cards]
+
+        # Look for a trump card
+        leadsuit = suits[0] if not trump in suits else trump
+
+        # Find the winning card
+        maxval = -1
+        winner = trick[0]
+        for (suit, value, currtrick) in zip(suits, vals, trick):
+            # Only look through cards from the leading suit
+            if suit == leadsuit:
+                # Replace winner if value is higher
+                if valdict[value] >= maxval:
+                    maxval = valdict[value]
+                    winner = currtrick
+
+        return winner
+
     def start_game(self):
         self.lock.acquire()
         self.logger.info("Starting Game")
-        self.bid      = []
+        self.bids     = []
         self.trick    = []
         self.turn     = 0
         self.trickidx = 0
@@ -197,7 +211,7 @@ class Game():
     def start_hand(self):
         self.lock.acquire()
         self.logger.info("Starting new Hand")
-        self.bid      = []
+        self.bids     = []
         self.trick    = []
         self.turn     = 0
         self.trickidx = 0
@@ -211,14 +225,6 @@ class Game():
         self.deal_cards()
         return
 
-    def end_bidding(self):
-        self.lock.acquire()
-        self.logger.info("Ending Bidding")
-        self.logger.info("Starting First Trick")
-        self.turn = 0
-        self.state = Game.State.PLAY
-        self.lock.release()
-
     def start_trick(self):
         # NOT called for the first trick
         self.lock.acquire()
@@ -228,6 +234,14 @@ class Game():
         self.logger.info("Starting trick %i. First player: %s" % (self.trickidx+1, self.get_turn()))
         self.lock.release()
 
+    def end_bidding(self):
+        self.lock.acquire()
+        self.logger.info("Ending Bidding")
+        self.logger.info("Starting First Trick")
+        self.turn = 0
+        self.state = Game.State.PLAY
+        self.lock.release()
+
     def end_trick(self):
         # Send update for the final player
         self.update_hand()
@@ -235,14 +249,21 @@ class Game():
         # Score the trick
         # Reset info
         self.lock.acquire()
-        # TODO: Score
         self.trickidx = self.trickidx + 1
+        self.logger.info("Scoring trick %i: %s" % (self.trickidx, str(self.trick)))
+        winner = self.score_trick(self.trick)
+        self.logger.info("Winner: %s, Card: %s" % (winner[0], winner[1]))
+        for bid in self.bids:
+            if bid[0] == winner[0]:
+                break
+        bid[2] = bid[2] + 1
+
         self.lock.release()
-        pass
 
     def end_hand(self):
         # Score the hand
         self.lock.acquire()
+        self.logger.info("Hand Results: %s" % (str(self.bids)))
         # TODO: Score
         self.lock.release()
 
@@ -340,21 +361,6 @@ if __name__ == "__main__":
     player4.place_bid(2)
     player1.place_bid(2)
 
-    # time.sleep(3)
-
-    # player2.play_card(player2.cards[0])
-    # player3.play_card(player3.cards[0])
-    # player4.play_card(player4.cards[0])
-    # player1.play_card(player1.cards[0])
-
-    # time.sleep(3)
-
-    # player3.play_card(player3.cards[0])
-    # player4.play_card(player4.cards[0])
-    # player1.play_card(player1.cards[0])
-    # player2.play_card(player2.cards[0])
-
-
     time.sleep(3)
 
     playerlist = [player2, player3, player4, player1]
@@ -380,5 +386,21 @@ if __name__ == "__main__":
             pl.play_card(pl.cards[0])
         time.sleep(1)
         playerlist = playerlist[1:] + playerlist[0:1]
+
+
+    # trick = [('EJ', 'HQ'), ('Michael', 'H2'), ('David', 'H4'), ('Paige', 'HJ')]
+    # winner = myGame.score_trick(trick)
+    # print trick
+    # print winner
+
+    # trick = [('EJ', 'HQ'), ('Michael', 'H2'), ('David', 'H4'), ('Paige', 'S2')]
+    # winner = myGame.score_trick(trick)
+    # print trick
+    # print winner
+
+    # trick = [('EJ', 'H2'), ('Michael', 'CK'), ('David', 'CQ'), ('Paige', 'CA')]
+    # winner = myGame.score_trick(trick)
+    # print trick
+    # print winner
 
     myGame.shutdown()
