@@ -5,7 +5,7 @@ import threading
 import logging
 from Queue import Queue
 from spadesgame import Game
-from spadesplayer import JsonPlayer
+from spadesplayer import Player, JsonPlayer, DumbPlayer
 import json
 import argparse
 
@@ -20,10 +20,20 @@ REVERSE = "\033[;7m"
 logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 
 # Temporary magic numbers
-HOST, PORT = "192.168.0.54", 9010
+HOST, PORT = "localhost", 9010
 
 # Initialize game
 Spades = Game()
+
+player1 = DumbPlayer(Spades)
+player1.update_name("Paige")
+player1.team = 1
+player2 = DumbPlayer(Spades)
+player2.update_name("Michael")
+player2.team = 2
+player3 = DumbPlayer(Spades)
+player3.update_name("David")
+player3.team = 1
 
 class SpadesServer(SocketServer.ThreadingTCPServer):
     # Override to count number of connections: 
@@ -67,9 +77,8 @@ class SpadesRequestHandler(SocketServer.StreamRequestHandler):
             msg = self.txqueue.get()
             if not msg: break
             if msg[-1] != "\n": msg = msg + "\n"
-            print "Writing: " + msg
+            # print "Writing: " + msg
             self.wfile.write(msg)
-            print "Wrote msg"
         pass
 
     def handle(self):

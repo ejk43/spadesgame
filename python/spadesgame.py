@@ -104,6 +104,7 @@ class Game():
             if player.uuid == p.uuid:
                 self.logger.info("Deleted: %s" % str(player.name))
                 self.players.remove(p)
+        self.state = Game.State.WAIT
         self.lock.release()
         
         # Send status to all players
@@ -113,10 +114,10 @@ class Game():
         # Error Checking
         if self.state != Game.State.BID:
             self.logger.info("Error: Not correct time to bid")
-            return -1
+            return -1, "Not correct time to bid"
         if player != self.playerorder[self.turn]:
             self.logger.info("Error: %s bidding out of turn" % player.name)
-            return -2
+            return -2, "Bid out of turn"
 
         # Place the bid
         self.lock.acquire()
@@ -131,18 +132,19 @@ class Game():
             self.end_bidding()
 
         self.update_hand()
+        return True, ""
 
     def place_card(self, player, card):
         # Error Checking
         if self.state != Game.State.PLAY:
             self.logger.info("Error: Not correct time to play a card")
-            return -1
+            return -1, "Not correct time to play a card"
         if player != self.playerorder[self.turn]:
             self.logger.info("Error: %s playing out of turn" % player.name)
-            return -2
+            return -2, "Playing out of turn"
         if not card in player.cards:
             self.logger.info("Error: %s does not have %s in hand" % (player.name, card))
-            return -3
+            return -3, "Card not in hand"
 
         # Check that player follows suit
         if len(self.trick) > 0:
@@ -153,13 +155,13 @@ class Game():
                 if leadsuit in handsuits and self.rejectcards:
                     # Player has the leadsuit available
                     self.logger.info("Error: %s must follow suit" % player.name)
-                    return -4
+                    return -4, "Must follow suit"
                 elif card[0] == trump and not self.spadesbroke:
                     self.logger.info("SPADES BROKEN")
                     self.spadesbroke = True
         elif (card[0] == trump) and (not self.spadesbroke) and (self.rejectcards):
             self.logger.info("Error: %s played spades before broken" % player.name)
-            return -5
+            return -5, "Played spades before broken"
 
 
         # Place the Card
@@ -185,7 +187,7 @@ class Game():
 
         self.update_hand()
 
-        return True
+        return True, ""
 
     def deal_cards(self):
         self.lock.acquire()
@@ -436,7 +438,7 @@ if __name__ == "__main__":
         print list(map(lambda p: p.name, playerlist))
         for pl in playerlist:
             idx = 0
-            while pl.play_card(pl.cards[idx]) < 0:
+            while pl.play_card(pl.cards[idx])[0] < 0:
                 idx = idx + 1
                 # time.sleep(1)
         time.sleep(1)
@@ -455,7 +457,7 @@ if __name__ == "__main__":
         print list(map(lambda p: p.name, playerlist))
         for pl in playerlist:
             idx = 0
-            while pl.play_card(pl.cards[idx]) < 0:
+            while pl.play_card(pl.cards[idx])[0] < 0:
                 idx = idx + 1
                 # time.sleep(1)
         time.sleep(1)

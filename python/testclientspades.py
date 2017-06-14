@@ -14,7 +14,7 @@ parser.add_argument("-t", "--team", type=int, default=1, help="Team")
 
 
 
-HOST, PORT = "192.168.0.54", args.port
+HOST, PORT = "localhost", args.port
 data = " ".join(sys.argv[1:])
 
 
@@ -27,10 +27,10 @@ try:
     sock.connect((HOST, PORT))
     # sock.sendall(data + "\n")
 
-    received = sock.recv(1024)
-    print "Received: {}".format(received)
+    # received = sock.recv(1024)
+    # print "Received: {}".format(received)
 
-    time.sleep(2)
+    # time.sleep(2)
 
 
     # client_request = {'type' : 'request',
@@ -56,7 +56,13 @@ try:
     received = sock.recv(1024)
     print "Received: {}".format(received)
 
-    time.sleep(5)
+    raw_input()
+
+    client_bid = {'type' : 'bid', 
+                   'bid'   : 3}
+    sock.sendall(json.dumps(client_bid) + "\n")
+    received = sock.recv(1024)
+    print "Received: {}".format(received)
 
     raw_input()
 
