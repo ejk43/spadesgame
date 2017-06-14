@@ -52,7 +52,9 @@ class Game():
         self.score2  = 0
         self.turn    = 0
         self.bids    = []
-        self.tricks  = []
+        self.trick   = []
+        self.trickidx = 0
+        self.spadesbroke = False
 
         # Start game loop
         self.halt = False
@@ -69,9 +71,10 @@ class Game():
 
     def update_hand(self):
         for (ii, player) in enumerate(self.playerorder):
-            print ii
-            print player
-            print player.name
+            # print ii, self.turn
+            # print player
+            # print player.name
+            # print self.state
             action = "wait"
             if ii == self.turn:
                 if self.state == Game.State.BID:
@@ -80,7 +83,15 @@ class Game():
                     action = "card"
             handinfo = self.get_hand(player.cards, action)
             player.update_hand(handinfo)
-            pass
+
+    def end_trick(self):
+        self.lock.acquire()
+        
+        # Finish trick
+        self.turn = 4
+        self.update_hand()
+
+        self.lock.release()
 
     def add_player(self, newplayer):
         self.lock.acquire()
@@ -104,6 +115,140 @@ class Game():
         # Send status to all players
         self.update_status()
 
+    def place_bid(self, player, bid):
+        # Error Checking
+        if self.state != Game.State.BID:
+            self.logger.info("Error: Not correct time to bid")
+            return -1
+        if player != self.playerorder[self.turn]:
+            self.logger.info("Error: %s bidding out of turn" % player.name)
+            return -2
+
+        # Place the bid
+        self.lock.acquire()
+        self.logger.info("Received BID from %s: %i" % (player.name, bid))
+        self.bids.append((player.name, bid, 0))
+        if self.turn < 4:
+            self.turn = self.turn + 1
+        self.lock.release()
+
+        # Check for end of Bid State
+        if self.turn == 4:
+            self.end_bidding()
+
+        self.update_hand()
+
+    def place_card(self, player, card):
+        # Error Checking
+        if self.state != Game.State.PLAY:
+            self.logger.info("Error: Not correct time to play a card")
+            return -1
+        if player != self.playerorder[self.turn]:
+            self.logger.info("Error: %s playing out of turn" % player.name)
+            return -2
+
+        # Place the Card
+        self.lock.acquire()
+        self.logger.info("Received CARD from %s: %s" % (player.name, card))
+        self.trick.append((player.name, card))
+        if self.turn < 4:
+            self.turn = self.turn + 1
+        self.lock.release()
+
+        if self.turn == 4:
+            self.end_trick()
+
+            if self.trickidx < 13:
+                self.start_trick()
+            else:
+                self.end_hand()
+                self.start_hand()
+
+
+        self.update_hand()
+
+    def deal_cards(self):
+        self.lock.acquire()
+        self.deck.shuffle()
+        self.logger.info("Dealing! Dealer is %s" % self.dealerorder[0].name)
+        for (player, hand) in zip(self.playerorder, self.deck.deal()):
+            self.logger.info("Dealing to %s" % (player.name))
+            player.deal_hand(hand)
+        self.lock.release()
+
+    def start_game(self):
+        self.lock.acquire()
+        self.logger.info("Starting Game")
+        self.bid      = []
+        self.trick    = []
+        self.turn     = 0
+        self.trickidx = 0
+        self.spadesbroke = False
+        self.state    = Game.State.BID
+
+        team1 = self.get_team(1)
+        team2 = self.get_team(2)
+        self.dealerorder = [team1[0], team2[0], team1[1], team2[1]]
+        self.playerorder = self.dealerorder[1:] + self.dealerorder[0:1]
+        self.lock.release()
+
+        self.deal_cards()
+
+    def start_hand(self):
+        self.lock.acquire()
+        self.logger.info("Starting new Hand")
+        self.bid      = []
+        self.trick    = []
+        self.turn     = 0
+        self.trickidx = 0
+        self.spadesbroke = False
+        self.state    = Game.State.BID
+        
+        self.dealerorder = self.dealerorder[1:] + self.dealerorder[0:1]
+        self.playerorder = self.dealerorder[1:] + self.dealerorder[0:1]
+        self.lock.release()
+
+        self.deal_cards()
+        return
+
+    def end_bidding(self):
+        self.lock.acquire()
+        self.logger.info("Ending Bidding")
+        self.logger.info("Starting First Trick")
+        self.turn = 0
+        self.state = Game.State.PLAY
+        self.lock.release()
+
+    def start_trick(self):
+        # NOT called for the first trick
+        self.lock.acquire()
+        self.turn    = 0
+        self.trick   = []
+        self.playerorder = self.playerorder[1:] + self.playerorder[0:1]
+        self.logger.info("Starting trick %i. First player: %s" % (self.trickidx+1, self.get_turn()))
+        self.lock.release()
+
+    def end_trick(self):
+        # Send update for the final player
+        self.update_hand()
+
+        # Score the trick
+        # Reset info
+        self.lock.acquire()
+        # TODO: Score
+        self.trickidx = self.trickidx + 1
+        self.lock.release()
+        pass
+
+    def end_hand(self):
+        # Score the hand
+        self.lock.acquire()
+        # TODO: Score
+        self.lock.release()
+
+        # Send the new game update
+        self.update_status()
+
     def get_player_list(self):
         return list(map(lambda p: p.name, self.players))
 
@@ -122,35 +267,20 @@ class Game():
                   'score2'  : self.score2}
         return status
 
+    def get_turn(self):
+        if self.turn >= 0 and self.turn < 4:
+            return self.playerorder[self.turn].name
+        else:
+            return "none"
+
     def get_hand(self, cards, action):
         hand = {'type'   : 'hand',
                 'cards'  : cards,
                 'bids'   : self.bids,
-                'trick'  : self.tricks,
-                'turn'   : self.playerorder[self.turn].name,
+                'trick'  : self.trick,
+                'turn'   : self.get_turn(),
                 'action' : action}
         return hand
-
-    def start_bidding(self):
-        self.lock.acquire()
-        self.state = Game.State.BID
-
-        self.logger.info("Shuffling")
-        self.deck.shuffle()
-
-        for (player, hand) in zip(self.players, self.deck.deal()):
-            print player.name, hand
-            player.deal_hand(hand)
-
-        team1 = self.get_team(1)
-        team2 = self.get_team(2)
-        self.playerorder = [team1[0], team2[0], team1[1], team2[1]]
-
-        self.lock.release()
-        return
-
-    def start_play(self):
-        return
 
     def gameloop(self):
         while True:
@@ -166,14 +296,16 @@ class Game():
                     if len(self.get_team(1)) == 2 and len(self.get_team(2)) == 2:
                         # If we have four players and each team has 2 players
                         self.logger.info("READY TO START")
-                        self.start_bidding()
+                        self.start_game()
                         self.update_hand()
 
             elif self.state == Game.State.BID:
-                self.logger.info("bidding")
+                # self.logger.info("bidding")
+                pass
 
             elif self.state == Game.State.PLAY:
-                self.logger.info("playing")
+                # self.logger.info("playing")
+                pass
 
             time.sleep(1)
 
@@ -188,26 +320,65 @@ if __name__ == "__main__":
 
     myGame = Game()
 
-    player1 = Player()
-    player1.name = "EJ"
+    player1 = Player(myGame)
+    player1.update_name("EJ")
     player1.team = 1
-    myGame.add_player(player1)
-    player2 = Player()
-    player2.name = "Michael"
-    player2.team = 1
-    myGame.add_player(player2)
-
-    time.sleep(5)
-
-    player1 = Player()
-    player1.name = "David"
-    player1.team = 2
-    myGame.add_player(player1)
-    player2 = Player()
-    player2.name = "Paige"
+    player2 = Player(myGame)
+    player2.update_name("Michael")
     player2.team = 2
-    myGame.add_player(player2)
+    player3 = Player(myGame)
+    player3.update_name("David")
+    player3.team = 1
+    player4 = Player(myGame)
+    player4.update_name("Paige")
+    player4.team = 2
 
-    time.sleep(5)
+    time.sleep(2)
+
+    player2.place_bid(5)
+    player3.place_bid(4)
+    player4.place_bid(2)
+    player1.place_bid(2)
+
+    # time.sleep(3)
+
+    # player2.play_card(player2.cards[0])
+    # player3.play_card(player3.cards[0])
+    # player4.play_card(player4.cards[0])
+    # player1.play_card(player1.cards[0])
+
+    # time.sleep(3)
+
+    # player3.play_card(player3.cards[0])
+    # player4.play_card(player4.cards[0])
+    # player1.play_card(player1.cards[0])
+    # player2.play_card(player2.cards[0])
+
+
+    time.sleep(3)
+
+    playerlist = [player2, player3, player4, player1]
+    for ii in range(13):
+        print list(map(lambda p: p.name, playerlist))
+        for pl in playerlist:
+            pl.play_card(pl.cards[0])
+        time.sleep(1)
+        playerlist = playerlist[1:] + playerlist[0:1]
+
+
+    player3.place_bid(4)
+    player4.place_bid(2)
+    player1.place_bid(2)
+    player2.place_bid(5)
+
+    time.sleep(3)
+
+    playerlist = [player3, player4, player1, player2]
+    for ii in range(13):
+        print list(map(lambda p: p.name, playerlist))
+        for pl in playerlist:
+            pl.play_card(pl.cards[0])
+        time.sleep(1)
+        playerlist = playerlist[1:] + playerlist[0:1]
 
     myGame.shutdown()

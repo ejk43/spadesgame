@@ -1,19 +1,39 @@
 import json
 import uuid
+import logging
+
+RED   = "\033[1;31m"  
+BLUE  = "\033[1;34m"
+CYAN  = "\033[1;36m"
+GREEN = "\033[0;32m"
+RESET = "\033[0;0m"
+BOLD    = "\033[;1m"
+REVERSE = "\033[;7m"
 
 # Defines player behavior for spadesgame
 #  - Base class defines update functions
 
 # Derived classes provide JSON interactions between updates
 
+logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
+
 class Player():
-    def __init__(self):
+    def __init__(self,  Game):
         self.uuid = uuid.uuid1()
         self.cards = []
         self.played = []
         self.name = ""
         self.team = 0
         self.bid  = 0
+
+        self.logger  = logging.getLogger(BLUE+'Player'+RESET)
+
+        self.Game = Game
+        self.Game.add_player(self)
+
+    def update_name(self, name):
+        self.name = name
+        self.logger  = logging.getLogger(BLUE+self.name+RESET)
 
     def deal_hand(self, hand):
         for card in hand:
@@ -22,21 +42,30 @@ class Player():
         print "Received cards:", self.cards
 
     def update_status(self, status):
-        print  self.name + ": Got Status Update"
-        pass
+        self.logger.info("Got Status Update")
 
     def update_hand(self, hand):
-        print  self.name + ": Got Hand Update"
-        pass
+        self.logger.info("Got Hand Update, Action = %s" % hand['action'])
+        # print hand
+
+    def place_bid(self, bid):
+        self.logger.info("Bidding: " + str(bid))
+        self.bid = bid
+        self.Game.place_bid(self, self.bid)
+
+    def play_card(self, card):
+        self.logger.info("Playing Card: " + str(card))
+        if card in self.cards:
+            self.cards.remove(card)
+            self.played.append(card)
+            self.Game.place_card(self, card)
+        # TODO: Check for errors
+
 
 class JsonPlayer(Player):
     def __init__(self, Game, txqueue):
-        Player.__init__(self)
-
+        Player.__init__(self, Game)
         self.txqueue = txqueue
-        self.Game = Game
-        self.Game.add_player(self)
-        # self.Game.get_team(self, None)
 
     def remove(self):
         self.Game.delete_player(self)
