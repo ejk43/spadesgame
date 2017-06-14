@@ -20,7 +20,7 @@ REVERSE = "\033[;7m"
 logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 
 # Temporary magic numbers
-HOST, PORT = "localhost", 9010
+HOST, PORT = "0.0.0.0", 9000
 
 # Initialize game
 Spades = Game()
