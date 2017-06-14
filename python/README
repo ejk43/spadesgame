@@ -1,0 +1,13 @@
+# Python Implementation of the Spades Server
+
+To run a test on the Game object: 
+
+`python spadesgame.py`
+
+To run the Server on port 9000:
+
+`python spadesserver.py 9000`
+
+
+TODO:
+ - Need to specify an IP address in spadesserver command line
