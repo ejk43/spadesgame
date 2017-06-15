@@ -95,18 +95,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Spades Server')
     parser.add_argument('port', type=int, default=PORT, help="Port")
     parser.add_argument("-i", '--ip', type=str, default=HOST, help="Host address, default: %s" % HOST)
+    parser.add_argument("-d", '--dummy', action="store_true", default=False, help="Set to initiate with 3x dummy players")
     (args) = parser.parse_args()
 
     # TODO: Parameterize the "Dumb" players
-    player1 = DumbPlayer(Spades)
-    player1.update_name("Paige")
-    player1.team = 1
-    player2 = DumbPlayer(Spades)
-    player2.update_name("Michael")
-    player2.team = 2
-    player3 = DumbPlayer(Spades)
-    player3.update_name("David")
-    player3.team = 1
+    if args.dummy:
+        player1 = DumbPlayer(Spades)
+        player1.update_name("Sully")
+        player1.team = 1
+        player2 = DumbPlayer(Spades)
+        player2.update_name("Wazowski")
+        player2.team = 2
+        player3 = DumbPlayer(Spades)
+        player3.update_name("Boo")
+        player3.team = 1
 
     # Create the server, binding to localhost on port 9999
     server = SpadesServer((args.ip, args.port), SpadesRequestHandler)

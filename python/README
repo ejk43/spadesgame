@@ -9,5 +9,14 @@ To run the Server on port 9000:
 `python spadesserver.py 9000`
 
 
-TODO:
- - Need to specify an IP address in spadesserver command line
+## Notes:
+
+To run at my house: `python spadesserver.py -i 192.168.1.10 9000`
+
+To run on the ec2: `python spadesserver.py -i 0.0.0.0 9005`
+
+
+## TODO:
+ - Add threading to game updates
+ - Fix dumb players
+ - Test!
