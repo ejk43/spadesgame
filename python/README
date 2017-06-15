@@ -17,6 +17,7 @@ To run on the ec2: `python spadesserver.py -i 0.0.0.0 9005`
 
 
 ## TODO:
+ - Add logging
  - Add threading to game updates
  - Fix dumb players
  - Test!
