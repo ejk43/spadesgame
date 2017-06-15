@@ -37,11 +37,16 @@ class Deck():
             hands.append(self.cards[ii:nHands*nCards+ii:nHands])
         return hands
 
+# TODO: 
+# - Thread the update process, add queue
+# - Use recursive lock
+
 class Game():
     class State(Enum):
         WAIT = 1
         BID  = 2
         PLAY = 3
+        END  = 4
 
     def __init__(self):
         self.lock    = threading.Lock()
@@ -90,7 +95,7 @@ class Game():
     def add_player(self, newplayer):
         self.lock.acquire()
         if len(self.players) < 4:
-            self.logger.info("added: %s" % str(newplayer.name))
+            self.logger.info("added: %s" % str(BLUE+newplayer.name+RESET))
             self.players.append(newplayer)
         self.lock.release()
 
@@ -172,6 +177,7 @@ class Game():
         player.cards.remove(card)
         player.played.append(card)
 
+        # Advance turn if needed
         if self.turn < 4:
             self.turn = self.turn + 1
         self.lock.release()
@@ -183,7 +189,11 @@ class Game():
                 self.start_trick()
             else:
                 self.end_hand()
-                self.start_hand()
+
+                if self.score1 > 500 or self.score2 > 500:
+                    self.end_game()
+                else:
+                    self.start_hand()
 
         self.update_hand()
 
@@ -340,6 +350,10 @@ class Game():
         # Send the new game update
         self.update_status()
 
+    def end_game(self):
+        self.logger.info("GAME OVER!!!")
+        self.state = Game.State.END
+
     def get_player_list(self):
         return list(map(lambda p: p.name, self.players))
 
@@ -373,6 +387,16 @@ class Game():
                 'action' : action}
         return hand
 
+    def all_unique_names(self):
+        names = self.get_player_list()
+        seen = []
+        for name in names:
+            if name in seen:
+                return False
+            else:
+                seen.append(name)
+        return True
+
     def gameloop(self):
         while True:
             if self.halt:
@@ -383,7 +407,7 @@ class Game():
                 self.logger.info("Num Players = %i" % len(self.players))
 
                 # Check if we can move on to the game
-                if len(self.players) == 4:
+                if len(self.players) == 4 and self.all_unique_names():
                     if len(self.get_team(1)) == 2 and len(self.get_team(2)) == 2:
                         # If we have four players and each team has 2 players
                         self.logger.info("READY TO START")
@@ -397,6 +421,10 @@ class Game():
             elif self.state == Game.State.PLAY:
                 # self.logger.info("playing")
                 pass
+
+            elif self.state == Game.State.END:
+                if len(self.players) < 4:
+                    self.state = Game.State.WAIT
 
             time.sleep(1)
 

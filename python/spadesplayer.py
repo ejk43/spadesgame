@@ -32,6 +32,8 @@ class Player():
         self.Game.add_player(self)
 
     def update_name(self, name):
+        if type(name) == 'list':
+            name = name[0]
         self.name = name
         self.logger  = logging.getLogger(BLUE+self.name+RESET)
 
@@ -147,7 +149,7 @@ class JsonPlayer(Player):
         if not team in [0, 1, 2]:
             self.throw_client_error('invalid team option. Must be 0, 1, or 2')
 
-        # Set name and team index 
+        # Set name and team index
         self.update_name(data['id'])
         self.team = team
 

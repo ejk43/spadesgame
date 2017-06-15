@@ -6,25 +6,22 @@ import json
 import argparse
 
 
+HOST, PORT = "0.0.0.0", 9000
+
 parser = argparse.ArgumentParser(description='Test Spades Client')
 parser.add_argument('port', type=int, help="Port")
-parser.add_argument("-n", "--name", type=str, nargs=1, default="EJ", help="Player Name")
+parser.add_argument("-n", "--name", type=str, default="EJ", help="Player Name")
 parser.add_argument("-t", "--team", type=int, default=1, help="Team")
+parser.add_argument("-i", '--ip', type=str, default=HOST, help="Host address, default: %s" % HOST)
 (args) = parser.parse_args()
-
-
-
-HOST, PORT = "localhost", args.port
-data = " ".join(sys.argv[1:])
-
-
+print "Got Args:", args
 
 # Create a socket (SOCK_STREAM means a TCP socket)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 try:
     # Connect to server and send data
-    sock.connect((HOST, PORT))
+    sock.connect((args.ip, args.port))
     # sock.sendall(data + "\n")
 
     # received = sock.recv(1024)

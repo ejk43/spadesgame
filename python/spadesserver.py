@@ -25,16 +25,6 @@ HOST, PORT = "0.0.0.0", 9000
 # Initialize game
 Spades = Game()
 
-player1 = DumbPlayer(Spades)
-player1.update_name("Paige")
-player1.team = 1
-player2 = DumbPlayer(Spades)
-player2.update_name("Michael")
-player2.team = 2
-player3 = DumbPlayer(Spades)
-player3.update_name("David")
-player3.team = 1
-
 class SpadesServer(SocketServer.ThreadingTCPServer):
     # Override to count number of connections: 
     # https://stackoverflow.com/questions/5370778/how-to-count-connected-clients-in-tcpserver
@@ -104,10 +94,22 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Spades Server')
     parser.add_argument('port', type=int, default=PORT, help="Port")
+    parser.add_argument("-i", '--ip', type=str, default=HOST, help="Host address, default: %s" % HOST)
     (args) = parser.parse_args()
 
+    # TODO: Parameterize the "Dumb" players
+    player1 = DumbPlayer(Spades)
+    player1.update_name("Paige")
+    player1.team = 1
+    player2 = DumbPlayer(Spades)
+    player2.update_name("Michael")
+    player2.team = 2
+    player3 = DumbPlayer(Spades)
+    player3.update_name("David")
+    player3.team = 1
+
     # Create the server, binding to localhost on port 9999
-    server = SpadesServer((HOST, args.port), SpadesRequestHandler)
+    server = SpadesServer((args.ip, args.port), SpadesRequestHandler)
 
     # # Activate the server; this will keep running until you
     # # interrupt the program with Ctrl-C
