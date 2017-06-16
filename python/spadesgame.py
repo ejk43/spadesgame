@@ -402,9 +402,9 @@ class Game():
             if self.halt:
                 return
 
-            self.logger.info(self.state)
+            # self.logger.info(self.state)
             if self.state == Game.State.WAIT:
-                self.logger.info("Num Players = %i" % len(self.players))
+                # self.logger.info("Num Players = %i" % len(self.players))
 
                 # Check if we can move on to the game
                 if len(self.players) == 4 and self.all_unique_names():

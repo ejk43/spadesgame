@@ -38,6 +38,7 @@ class Player():
         self.logger  = logging.getLogger(BLUE+self.name+RESET)
 
     def deal_hand(self, hand):
+        self.cards = []
         for card in hand:
             self.cards.append(card)
             self.played.append(False)
@@ -177,14 +178,13 @@ class JsonPlayer(Player):
         self.logger.info("Received Card")
         if not self.check_for_key(data, 'card'): return
         try:
-            bid = str(data["card"])
+            card = str(data["card"])
         except:
             self.throw_client_error('invalid card field')
-        if not card in self.cards:
-            self.throw_client_error("card must be in hand")
+            return
         
         # Try playing the card
-        code, msg = self.play_card(bid)
+        code, msg = self.play_card(card)
 
         # If we get an error code, throw message
         if code < 0:
