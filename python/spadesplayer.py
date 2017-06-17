@@ -286,8 +286,12 @@ class JsonPlayer(Player):
         
         for (ii, play) in enumerate(curr_players):
             if play == name:
-                if self.Game.players[ii] == self:
+                playerobj = self.Game.players[ii]
+                if playerobj == self:
                     self.throw_client_error('you cannot remove yourself, silly')
+                    return
+                if not isinstance(playerobj, DumbPlayer):
+                    self.throw_client_error('cannot remove human players. Be nice')
                     return
                 self.Game.delete_player(self.Game.players[ii])
 
