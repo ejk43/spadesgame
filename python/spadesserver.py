@@ -22,15 +22,13 @@ logging.basicConfig(level=logging.DEBUG, format='%(name)s: %(message)s')
 # Temporary magic numbers
 HOST, PORT = "0.0.0.0", 9000
 
-# Initialize game
-Spades = Game()
-
 class SpadesServer(SocketServer.ThreadingTCPServer):
     # Override to count number of connections: 
     # https://stackoverflow.com/questions/5370778/how-to-count-connected-clients-in-tcpserver
 
-    def __init__(self, *args, **kws):
+    def __init__(self, Game, *args, **kws):
         self._num_client = 0
+        self.Game = Game
         SocketServer.ThreadingTCPServer.__init__(self, *args, **kws)
 
     def process_request(self, *args, **kws):
@@ -53,13 +51,13 @@ class SpadesRequestHandler(SocketServer.StreamRequestHandler):
     """
     def __init__(self, *args, **kws):
         print "New Handler"
-        global Spades
+        server = args[2]
 
         # Initialize
         self.txqueue = Queue()
         self.txthread = threading.Thread(target=self.txloop)
         self.txthread.start()
-        self.Player = JsonPlayer(Spades, self.txqueue)
+        self.Player = JsonPlayer(server.Game, self.txqueue)
         SocketServer.StreamRequestHandler.__init__(self, *args, **kws)
 
     def txloop(self):
@@ -98,20 +96,24 @@ if __name__ == "__main__":
     parser.add_argument("-d", '--dummy', action="store_true", default=False, help="Set to initiate with 3x dummy players")
     (args) = parser.parse_args()
 
+    # Initialize game
+    Spades = Game()
+
     # TODO: Parameterize the "Dumb" players
     if args.dummy:
         player1 = DumbPlayer(Spades)
-        player1.update_name("Sully")
+        player1.set_name("Sully")
         player1.team = 1
         player2 = DumbPlayer(Spades)
-        player2.update_name("Wazowski")
+        player2.set_name("Wazowski")
         player2.team = 2
         player3 = DumbPlayer(Spades)
-        player3.update_name("Boo")
+        player3.set_name("Boo")
         player3.team = 1
 
     # Create the server, binding to localhost on port 9999
-    server = SpadesServer((args.ip, args.port), SpadesRequestHandler)
+    server = SpadesServer(Spades, (args.ip, args.port), SpadesRequestHandler)
+    server.Game = Spades
 
     # # Activate the server; this will keep running until you
     # # interrupt the program with Ctrl-C

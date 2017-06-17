@@ -1,6 +1,8 @@
 import json
 import uuid
 import logging
+from queue import Queue
+import threading
 
 RED   = "\033[1;31m"  
 BLUE  = "\033[1;34m"
@@ -22,35 +24,36 @@ class Player():
         self.uuid = uuid.uuid1()
         self.cards = []
         self.played = []
-        self.name = ""
         self.team = 0
         self.bid  = 0
+        self.name = ""
 
         self.logger  = logging.getLogger(BLUE+'Player'+RESET)
+
+        # Provide thread + Queue to receive updates
+        self.upqueue = Queue()
+        self.upthread = threading.Thread(target=self.update_loop)
+        self.upthread.start()
 
         self.Game = Game
         self.Game.add_player(self)
 
-    def update_name(self, name):
-        if type(name) == 'list':
-            name = name[0]
-        self.name = name
-        self.logger  = logging.getLogger(BLUE+self.name+RESET)
+    def remove(self):
+        print("killing %s" % self.name)
+        self.upqueue.put(None)
+        self.upthread.join()
+
+    # "PUBLIC" Functions
+    def update(self, data):
+        self.upqueue.put(data)
 
     def deal_hand(self, hand):
         self.cards = []
         for card in hand:
             self.cards.append(card)
             self.played.append(False)
-        # print "Received cards:", self.cards
 
-    def update_status(self, status):
-        self.logger.info("Got Status Update")
-
-    def update_hand(self, hand):
-        self.logger.info("Got Hand Update, Action = %s" % hand['action'])
-        # print hand
-
+    # "Protected" Functions
     def place_bid(self, bid):
         self.logger.info("Bidding: " + str(bid))
         self.bid = bid
@@ -59,10 +62,36 @@ class Player():
     def play_card(self, card):
         self.logger.info("Playing Card: " + str(card))
         return self.Game.place_card(self, card)
+
+    def update_loop(self):        
+        while True:
+            data = self.upqueue.get()
+            if not data: break
+            if data['type'] == "status":
+                self.update_status(data)
+            elif data['type'] == "hand":
+                self.update_hand(data)
+            else:
+                self.logger.info("Received incorrect update message type: %s" % data['type'])
+        pass
+
+    # "Overloadable"
+    def update_status(self, status):
+        self.logger.info("Got Status Update")
+        self.logger.info("Players: %s" % status['players'])
+
+    def update_hand(self, hand):
+        self.logger.info("Got Hand Update, Action = %s" % hand['action'])
+
+    def set_name(self, name):
+        if type(name) == 'list':
+            name = name[0]
+        self.name = name
+        self.logger  = logging.getLogger(BLUE+self.name+RESET)
         # TODO: Check for errors
 
 class DumbPlayer(Player):
-    # Dont use DumbPlayer... It will cause silly recursion in update functions
+    # Dont use DumbPlayer... It will cause silly recursion in update function
     def update_hand(self, hand):
         self.logger.info("Got Hand Update, Action = %s" % hand['action'])
         if hand['action'] == "bid":
@@ -88,6 +117,7 @@ class JsonPlayer(Player):
 
     def remove(self):
         self.Game.delete_player(self)
+        Player.remove(self)
 
     def update_status(self, status):
         # Contains game status:
@@ -151,7 +181,7 @@ class JsonPlayer(Player):
             self.throw_client_error('invalid team option. Must be 0, 1, or 2')
 
         # Set name and team index
-        self.update_name(data['id'])
+        self.set_name(data['id'])
         self.team = team
 
         # Send out the status update
