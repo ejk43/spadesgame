@@ -78,6 +78,13 @@ class SpadesClient(cmd.Cmd):
         client_add = {'type' : 'add'}
         self.sock.sendall(json.dumps(client_add) + "\n")
 
+    def do_kill(self, name):
+        "\nRemove a machine player\n"
+        print("Removing Player")
+        client_add = {'type' : 'kill', 
+                      'name': name}
+        self.sock.sendall(json.dumps(client_add) + "\n")
+
     def do_quit(self, arg):
         "\nQuit the Game\n"
         print('\nThank you for playing\n')

@@ -5,7 +5,7 @@ from queue import Queue
 import threading
 import random
 
-names = ["Aladdin", "Jasmine", "Jafar", "Iago", "Belle", "Gaston", "Beast", "Mater", "Dumbo", "Nemo", "Marlin", "Dory", "Bruce", "Elsa", "Anna", "Olaf", "Sven", "Phil"]
+names = ["Sulley", "Mike", "Boo", "Happy", "Dopey", "Sleepy", "Sneezy", "Bashful", "Grumpy", "Doc", "Tarzan", "Jane", "Woody", "Buzz", "Slinky", "Rex", "Hamm", "Aladdin", "Jasmine", "Jafar", "Iago", "Belle", "Gaston", "Beast", "Mater", "Dumbo", "Nemo", "Marlin", "Dory", "Bruce", "Elsa", "Anna", "Olaf", "Sven", "Phil"]
 
 RED   = "\033[1;31m"  
 BLUE  = "\033[1;34m"
@@ -163,6 +163,8 @@ class JsonPlayer(Player):
             self.receive_card(data)
         elif data['type'] == 'add':
             self.create_new_player(data)
+        elif data['type'] == 'kill':
+            self.remove_dummy_player(data)
         else:
             self.throw_client_error('unknown type')
 
@@ -264,6 +266,30 @@ class JsonPlayer(Player):
         player = DumbPlayer(self.Game)
         player.set_name(newname)
         player.team = team
+
+        self.Game.update_status()
+
+    def remove_dummy_player(self, data):
+        self.logger.info("Removing a dummy player")
+        if not self.check_for_key(data, 'name'): return
+        try:
+            name = str(data["name"])
+        except:
+            self.throw_client_error('invalid name field')
+            return
+        
+        curr_players = self.Game.get_player_list()
+        
+        if not name in curr_players:
+            self.throw_client_error('player %s not currently playing' % name)
+            return
+        
+        for (ii, play) in enumerate(curr_players):
+            if play == name:
+                if self.Game.players[ii] == self:
+                    self.throw_client_error('you cannot remove yourself, silly')
+                    return
+                self.Game.delete_player(self.Game.players[ii])
 
         self.Game.update_status()
 
