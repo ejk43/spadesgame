@@ -68,51 +68,52 @@ class Game():
 
         # Start game loop
         self.halt = False
-        self.updatethread = threading.Thread(target=self.run_update)
-        self.updatethread.start()
+        # self.updatethread = threading.Thread(target=self.run_update)
+        # self.updatethread.start()
         self.gamethread = threading.Thread(target=self.gameloop)
         self.gamethread.daemon = True
         self.gamethread.start()
 
-    def run_update(self):
-        leftover = ""
-        while True:
-            msg = self.updatequeue.get()
-            if not msg: break
-            msg = leftover + msg
-            words = msg.split('\n')
-            for cmd in words[:-1]:
-                with self.lock:
-                    # Send update to all players before unlocking!!
-                    print cmd
+    # def run_update(self):
+    #     leftover = ""
+    #     while True:
+    #         msg = self.updatequeue.get()
+    #         if not msg: break
+    #         msg = leftover + msg
+    #         words = msg.split('\n')
+    #         for cmd in words[:-1]:
+    #             with self.lock:
+    #                 # Send update to all players before unlocking!!
+    #                 self.logger.info("Sending Update: %s" % cmd)
 
-                    if cmd == "status":
-                        status = self.get_status()
-                        for player in self.players:
-                            player.update(status)
+    #                 if cmd == "status":
 
-                    elif cmd == "hand":
-                        for (ii, player) in enumerate(self.playerorder):
-                            action = "wait"
-                            if ii == self.turn:
-                                if self.state == Game.State.BID:
-                                    action = "bid"
-                                elif self.state == Game.State.PLAY:
-                                    action = "card"
-                            handinfo = self.get_hand(player.cards, action)
-                            player.update(handinfo)
-                        pass
+    #                 elif cmd == "hand":
+    #                     pass
 
-                    else:
-                        self.logger.info("Received bad update command: %s" % cmd)
-            leftover = words[-1]
+    #                 else:
+    #                     self.logger.info("Received bad update command: %s" % cmd)
+    #         leftover = words[-1]
 
     def update_status(self):
-        self.updatequeue.put("status\n")
-        # with self.lock:
+        # self.updatequeue.put("status\n")
+        with self.lock:
+            status = self.get_status()
+            for player in self.players:
+                player.update(status)
 
     def update_hand(self):
-        self.updatequeue.put("hand\n")
+        # self.updatequeue.put("hand\n")
+        with self.lock:
+            for (ii, player) in enumerate(self.playerorder):
+                action = "wait"
+                if ii == self.turn:
+                    if self.state == Game.State.BID:
+                        action = "bid"
+                    elif self.state == Game.State.PLAY:
+                        action = "card"
+                handinfo = self.get_hand(player.cards, action)
+                player.update(handinfo)
 
     def add_player(self, newplayer):
         with self.lock:
@@ -369,6 +370,9 @@ class Game():
     def get_team(self, idx):
         return [p for p in self.players if (p.team == idx)]
 
+    def get_team_names(self, idx):
+        return self.get_names(self.get_team(idx))
+
     def get_names(self, playerlist):
         return list(map(lambda p: p.name, playerlist))
 
@@ -440,9 +444,9 @@ class Game():
 
     def shutdown(self):
         self.halt = True
-        self.updatequeue.put(None)
+        # self.updatequeue.put(None)
         self.gamethread.join()
-        self.updatethread.join()
+        # self.updatethread.join()
 
         for p in self.players:
             p.remove()
@@ -455,26 +459,26 @@ if __name__ == "__main__":
     myGame = Game()
 
     player1 = Player(myGame)
-    player1.update_name("EJ")
+    player1.set_name("EJ")
     player1.team = 1
     player2 = Player(myGame)
-    player2.update_name("Michael")
+    player2.set_name("Michael")
     player2.team = 2
     player3 = Player(myGame)
-    player3.update_name("David")
+    player3.set_name("David")
     player3.team = 1
     player4 = Player(myGame)
-    player4.update_name("Paige")
+    player4.set_name("Paige")
     player4.team = 2
 
-    time.sleep(2)
+    time.sleep(5)
 
     player2.place_bid(5)
     player3.place_bid(4)
     player4.place_bid(2)
     player1.place_bid(2)
 
-    time.sleep(3)
+    time.sleep(5)
 
     playerlist = [player2, player3, player4, player1]
     for ii in range(13):

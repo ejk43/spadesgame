@@ -72,6 +72,12 @@ class SpadesClient(cmd.Cmd):
                        'card' : card}
         self.sock.sendall(json.dumps(client_card) + "\n")
 
+    def do_add(self, arg):
+        "\nAdding a new player\n"
+        print("Adding Player")
+        client_add = {'type' : 'add'}
+        self.sock.sendall(json.dumps(client_add) + "\n")
+
     def do_quit(self, arg):
         "\nQuit the Game\n"
         print('\nThank you for playing\n')

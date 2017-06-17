@@ -3,6 +3,9 @@ import uuid
 import logging
 from queue import Queue
 import threading
+import random
+
+names = ["Aladdin", "Jasmine", "Jafar", "Iago", "Belle", "Gaston", "Beast", "Mater", "Dumbo", "Nemo", "Marlin", "Dory", "Bruce", "Elsa", "Anna", "Olaf", "Sven", "Phil"]
 
 RED   = "\033[1;31m"  
 BLUE  = "\033[1;34m"
@@ -33,6 +36,7 @@ class Player():
         # Provide thread + Queue to receive updates
         self.upqueue = Queue()
         self.upthread = threading.Thread(target=self.update_loop)
+        self.upthread.daemon = True
         self.upthread.start()
 
         self.Game = Game
@@ -157,6 +161,8 @@ class JsonPlayer(Player):
             self.receive_bid(data)
         elif data['type'] == 'card':
             self.receive_card(data)
+        elif data['type'] == 'add':
+            self.create_new_player(data)
         else:
             self.throw_client_error('unknown type')
 
@@ -219,6 +225,47 @@ class JsonPlayer(Player):
         # If we get an error code, throw message
         if code < 0:
             self.throw_client_error(msg)
+
+    def create_new_player(self, data):
+        self.logger.info("Adding a dummy player")
+
+        if not "name" in data.keys():
+            print names
+            newname = random.choice(names)
+            while newname in self.Game.get_player_list():
+                newname = random.choice(names)
+            print newname
+        else:
+            try:
+                newname = str(data["name"])
+            except:
+                self.throw_client_error('invalid name field')
+                return
+
+        if not "team" in data.keys():
+            team1 = self.Game.get_team_names(1)
+            team2 = self.Game.get_team_names(2)
+            print team1, team2
+            print len(team1)
+            if len(team1) < 2:
+                team = 1
+            elif len(team2) < 2:
+                team = 2
+            else:
+                self.throw_client_error('no extra players needed')
+                return
+        else:
+            try:
+                team = int(data["team"])
+            except:
+                self.throw_client_error('invalid team field')
+                return
+
+        player = DumbPlayer(self.Game)
+        player.set_name(newname)
+        player.team = team
+
+        self.Game.update_status()
 
     def check_for_key(self, data, key):
         if not key in data.keys():
